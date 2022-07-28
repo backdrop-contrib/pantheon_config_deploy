@@ -1,0 +1,23 @@
+# EXAMPLE of using the before and after webhooks in pantheon.yml
+# Depending on your setup you could use these scripts to auto-import config
+# check out the examples in before.php and after.php
+# Deploy integrations
+workflows:
+  sync_code:
+    before:
+      - type: webphp
+        description: SYNC is run on environment sync pre-deploy
+        script: private/scripts/before.php
+    after:
+      - type: webphp
+        description: SYNC is run on environment sync post-deploy
+        script: private/scripts/after.php    
+  deploy:
+    before:
+      - type: webphp
+        description: DEPLOY is run on environment deploy pre-deploy
+        script: private/scripts/before.php
+    after:
+      - type: webphp
+        description: DEPLOY is run on environment deploy post-deploy
+        script: private/scripts/after.php

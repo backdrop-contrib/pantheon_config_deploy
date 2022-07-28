@@ -1,0 +1,7 @@
+name = Pantheon Configuration Deploy
+description = Manages configuration deployments to read-only Pantheon filesystems.
+backdrop = 1.x
+type = module
+package = Pantheon
+configure = admin/pantheon-config/settings
+

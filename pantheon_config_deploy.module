@@ -1,0 +1,166 @@
+<?php
+/**
+ * @file
+ * Creates settings forms for Pantheon Configuration Deploy drush utilities
+ */
+
+/**
+ * Implements hook_init().
+ */
+function pantheon_config_deploy_init() {
+  if (file_exists(BACKDROP_ROOT . '/files/config/temp_active.true')) {
+    include_once(BACKDROP_ROOT . '/core/modules/config/config.admin.inc');
+    $config_statuses = config_get_statuses();
+    $changed_config_count = count(array_filter($config_statuses));
+    backdrop_set_message(t('<strong>Your site is using the writeable active configuration directory.</strong> Turn writeable configuration OFF after importing your version controlled configuration changes.'), "warning", FALSE);
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function pantheon_config_deploy_menu() {
+  /*
+  // Non-drush GUI can be revisited later
+  $items['admin/pantheon-config/revert'] = array(
+    'title' => 'Revert to version controlled configuration',
+    'description' => 'Switch your site back to version controlled configuraiton and delete your temporary configuration setup.',
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('pantheon_config_deploy_revert_form'),
+    'access arguments' => array('pantheon config admin'),
+  );
+  */
+  $items['admin/pantheon-config/settings'] = array(
+    'title' => 'Pantheon Configuration Settings',
+    'description' => 'Configure paths and scripts for Pantheon Configuration module',
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('pantheon_config_deploy_settings_form'),
+    'access arguments' => array('pantheon config admin'),
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function pantheon_config_deploy_permission() {
+  $permissions['pantheon config admin'] = array(
+    'title' => t('Administer Pantheon configuration management'),
+    'restrict access' => TRUE,
+  );
+  return $permissions;
+}
+
+/**
+ * Pantheon configuration settings form
+ */
+function pantheon_config_deploy_settings_form(array $form, array &$form_state) {
+  $config = config('pantheon_config_deploy.settings');
+  $writeable_config = $config->get('writeable_config');
+  $scripts = $config->get('scripts');
+  $web_root = $config->get('webroot');
+
+  $form['writeable_config'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Writeable configuration base directory',
+    '#description' => 'A directory in your Pantheon filesystem where you want to manage a <em>temporary writeable configuration</em>, generally <em>files/config</em> with no leading slash',
+    '#default_value' => $writeable_config ? $writeable_config : 'files/config',
+    '#length' => 32,
+  );
+  $form['scripts'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Pantheon webhook scripts directory',
+    '#description' => 'The location of <em>before.php</em> and <em>after.php</em> for access via Pantheon webhooks, generally in <em>private/scripts</em> with no leading slash',
+    '#default_value' => $scripts ? $scripts : 'private/scripts',
+    '#length' => 32,
+  );
+  $form['webroot'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Webroot fallback',
+    '#description' => 'The project absolute webroot, generally <em>/code</em> with leading slash for Pantheon sites.',
+    '#default_value' => $web_root ? $web_root : '/code',
+    '#length' => 32,
+  );
+  $form['actions'] = array(
+    '#type' => 'actions'
+  );
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+    '#access' => TRUE,
+  );
+  return $form;
+}
+
+/**
+ * Submit function for settings form
+ */
+function pantheon_config_deploy_settings_form_submit(array $form, array &$form_state) {
+  $config = config('pantheon_config_deploy.settings');
+  $config->set('writeable_config', $form_state['values']['writeable_config']);
+  $config->set('scripts', $form_state['values']['scripts']);
+  $config->set('webroot', $form_state['values']['webroot']);
+  $config->save();
+  backdrop_set_message(t("Pantheon Configuration Deployment settings have been saved."));
+}
+
+/**
+ * Pantheon configuration revert form
+ */
+function pantheon_config_deploy_revert_form(array $form, array &$form_state) {
+  $disabled = TRUE;
+  $message = array('<p>This form is only useable when your site is in <em>importable configuration mode</em>.</p>');
+  if (file_exists(BACKDROP_ROOT . '/files/config/temp_active.true')) {
+    include_once(BACKDROP_ROOT . '/core/modules/config/config.admin.inc');
+    $config_statuses = config_get_statuses();
+    $changed_config_count = count(array_filter($config_statuses));
+    $message = array('<p><strong>Your active site is in <em>importable configuration mode</em>.</strong> After importing, your should revert to version controlled configuration.</p>');
+    $message[] = '<p><strong>Pending configuration changes: </strong>' . $changed_config_count . '</p>';
+    $message[] = '<p>If you have pending configuration changes you probably want to <a href="/admin/config/development/configuration">import your configuration changes</a>. Then revert back to version controlled configuration below.</p>';
+    $disabled = FALSE;
+  }
+  $form['#prefix'] = implode("\r\n", $message);
+  $form['actions'] = array(
+    '#type' => 'actions'
+  );
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Revert to version controlled configuration'),
+    '#access' => TRUE,
+    '#disabled' => $disabled,
+  );
+  return $form;
+}
+
+/**
+ * Configuration form submit.
+ */
+function pantheon_config_deploy_revert_form_submit(array $form, array &$form_state) {
+  $web_root = BACKDROP_ROOT;
+  if (file_exists($web_root . '/files/config')) {
+    if (file_exists($web_root . '/files/config/temp_active.true')) {
+      unlink($web_root . '/files/config/temp_active.true');
+    }
+    $scan_dir = scandir($web_root . '/files/config');
+    foreach ($scan_dir as $dir_file) {
+      if (strpos($dir_file, 'config_') === 0) {
+        $config_scan = scandir($web_root . '/files/config/' . $dir_file);
+        foreach ($config_scan as $config_file) {
+          if (strpos(strrev($config_file), 'nosj.') === 0 || $config_file == '.htaccess') {
+            unlink($web_root . '/files/config/' . $dir_file . '/' . $config_file);
+            $count++;
+            $found = TRUE;
+          }
+        }
+        rmdir($web_root . '/files/config/' . $dir_file);
+      }
+    }
+    rmdir($web_root . '/files/config');
+  }
+  if (!$found) {
+    backdrop_set_message(t('No writeable configuration was found, no action was taken.'));
+  }
+  else {
+    backdrop_set_message(t('Your writeable configuration has been removed, and your active configuration directory restored to default settings.'));
+  }
+}
