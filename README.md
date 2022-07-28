@@ -38,25 +38,21 @@ To use this module:
 
 Basic workflow:
 
-First, make config affecting changes on your local environment. Then...
-
-terminus drush SITE.ENV pcrc                          // REMOVES any temporary config files from SITE.ENV
-terminus drush SITE.ENV pccc                          // CLONE your pre-deploy active config into the temporary config directory
-terminus drush SITE.ENV state-set maintenance_mode 1  // Optionally turn Maintenance Mode ON while changes are imported
-terminus drush SITE.ENV pcwc 1                        // TURN ON Writeable Configuration
-
-terminus upstream:updates:apply SITE.ENV --updatedb --accept-upstream //
-  OR
-git push origin [master / multidev env]
-
-terminus drush SITE.ENV bcim                          // IMPORT configuration
-terminus drush SITE.ENV pcrc                          // TURN OFF writeable config and cleanup the files
-terminus drush SITE.ENV state-set maintenance_mode 0  // Maintenance mode OFF
+ - First, make config affecting changes on your local environment, commit, and push. Then...
+ - __terminus drush SITE.ENV pcrc__ REMOVES any temporary config files from SITE.ENV
+ - __terminus drush SITE.ENV pccc__ CLONES your pre-deploy active config into the temporary config directory
+ - __terminus drush SITE.ENV state-set maintenance_mode 1__ Optionally turn Maintenance Mode ON while changes are imported
+ - __terminus drush SITE.ENV pcwc 1__ TURN ON Writeable Configuration
+ - __terminus upstream:updates:apply SITE.ENV --updatedb --accept-upstream__ ONLY IF you're using an upstream, or just push like normal //
+ - __git push origin [master / multidev env]__ ONLY IF you're not using an upstream, otherwise use the option above ^^
+ - __terminus drush SITE.ENV bcim__ IMPORT configuration changes in the repo
+ - __terminus drush SITE.ENV pcrc__ TURN OFF writeable config and cleanup the files
+ - __terminus drush SITE.ENV state-set maintenance_mode 0__ Maintenance mode OFF assuming you turned it on
 
 Issues
 ------
 
-Bugs and Feature requests should be reported in the Issue Queue:
+Bugs and Feature requests should be reported in the Issue Queue: https://github.com/backdrop-contrib/pantheon_config_deploy/issues
 
 
 Current Maintainers
