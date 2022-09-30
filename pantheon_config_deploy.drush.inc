@@ -19,6 +19,15 @@ function pantheon_config_deploy_drush_command() {
       'Remove writeable config and set writeable mode to OFF' => 'drush pcrc',
     ),
   );
+  $items['pc-status'] = array(
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+    'callback' => 'drush_pantheon_config_deploy_drush_wconfig_status',  // Callback function
+    'description' => 'Display the status of writeable config.',
+    'aliases' => array('pcs'), // alias of command
+    'examples' => array(      // List these example when user types : drush help nc
+      'Display the current status of writeable config' => 'drush pcs',
+    ),
+  );
   $items['pc-clone-config'] = array(
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
     'callback' => 'drush_pantheon_config_deploy_drush_clone_config',  // Callback function
@@ -39,6 +48,51 @@ function pantheon_config_deploy_drush_command() {
     ),
   );
   return $items;
+}
+
+/**
+ * Display status of the writeable config funcionality
+ */
+function drush_pantheon_config_deploy_drush_wconfig_status() {
+  $config = config('pantheon_config_deploy.settings');
+  $config_path = $config->get('writeable_config');
+  $web_root = $config->get('webroot') . '/';
+  echo "\r\n\r\nChecking for writeable config directory in: [" . $web_root . $config_path . "]\r\n";
+
+  if (file_exists($web_root . $config_path)) {
+    echo "FOUND\r\n";
+    echo "Checking for obscured config directory...\r\n";
+    $scan_dir = scandir($web_root . $config_path);
+    $count = 0;
+    foreach ($scan_dir as $dir_file) {
+      if (strpos($dir_file, 'config_') === 0) {
+        $count++;
+        $files = scandir($web_root . $config_path . '/' . $dir_file);
+        $modified = filemtime($web_root . $config_path . '/' . $dir_file);
+        $files = count($files) - 2;
+        echo "FOUND [" . $dir_file . "] last modified on ". date('F jS, Y, g:i A', $modified) .", with $files config files.\r\n";
+      }
+    }
+
+    // Too many config directories
+    if ($count > 1) {
+      $state = 0;
+      echo "Multiple config directories exist, only one can exist to turn on writeable mode. Run pc-remove-config to delete them.\r\n";
+    }
+
+    // No config directories
+    if ($count == 0) {
+      $state = 0;
+      echo "There is no useable writeable config directory. Run pantheon pc-clone-config to create one.\r\n";
+    }
+
+    // Determine whether writeable config is ON or OFF
+    $state = file_exists($web_root . $config_path . '/temp_active.true');
+  }
+  else {
+    return "Writeable config directory doesn't exist. Run pc-clone-config to create one.\r\n";
+  }
+  return "Writeable config mode is " . ($state ? "ON" : "OFF") . "\r\n";
 }
 
 /**
@@ -124,7 +178,9 @@ function drush_pantheon_config_deploy_drush_remove_config() {
         echo "Found: [" . $web_root . $config_path . '/' . $dir_file . "] with " . (count($config_scan) - 2) . " files\r\n";
         echo "Deleting configuration files";
         foreach ($config_scan as $config_file) {
-          if (strpos(strrev($config_file), 'nosj.') === 0 || $config_file == '.htaccess') {
+          
+          // DELETE all files in the config directory
+          if (!in_array($config_file, array('.', '..')) && !is_dir($web_root . $config_path . '/' . $dir_file . '/' . $config_file) ) {          
             unlink($web_root . $config_path . '/' . $dir_file . '/' . $config_file);
             echo ".";
             $count++;

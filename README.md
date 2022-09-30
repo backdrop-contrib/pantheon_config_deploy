@@ -1,5 +1,5 @@
-Pantheon Configuration
-======================
+Pantheon Configuration Deploy
+=============================
 
 Provides a small collection of drush utilities to deploy configuration changes
 to Backdrop CMS sites on Pantheon with their configuration in version control.
